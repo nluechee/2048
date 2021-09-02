@@ -31,7 +31,7 @@ public class GameScript : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        moveTiles();
+        StartCoroutine(moveTiles());
     }
  
     public void SpawnTile()
@@ -88,67 +88,75 @@ public class GameScript : MonoBehaviour
         SpawnTile();
     }
 
-    public void moveTiles()
+    public IEnumerator moveTiles()
     {
 
         if (Input.GetKeyDown(KeyCode.UpArrow) && !inputLocked)
         {
             // move up
+            inputLocked = true;
             activeTiles = activeTiles.OrderBy(t => t.currentCoord.y).ThenBy(t => t.currentCoord.x).ToList();
             foreach (Tile t in activeTiles)
             {
                 StartCoroutine(moveTile(t, Direction.up));
             }
-
+            yield return new WaitForSeconds(0.11f);
             // spawn a new tile
             SpawnTile();
+            inputLocked = false;
         }
         else if (Input.GetKeyDown(KeyCode.DownArrow) && !inputLocked)
         {
             // move down
+            inputLocked = true;
             activeTiles = activeTiles.OrderBy(t => t.currentCoord.y).ThenBy(t => t.currentCoord.x).ToList();
             activeTiles.Reverse();
             foreach (Tile t in activeTiles)
             {
                 StartCoroutine(moveTile(t, Direction.down));
             }
-
+            yield return new WaitForSeconds(0.11f);
             // spawn a new tile
             SpawnTile();
+            inputLocked = false;
         }
         else if (Input.GetKeyDown(KeyCode.LeftArrow) && !inputLocked)
         {
             // move left
+            inputLocked = true;
             activeTiles = activeTiles.OrderBy(t => t.currentCoord.x).ThenBy(t => t.currentCoord.y).ToList();
             foreach (Tile t in activeTiles)
             {
                 StartCoroutine(moveTile(t, Direction.left));
             }
-
+            yield return new WaitForSeconds(0.11f);
             // spawn a new tile
             SpawnTile();
+            inputLocked = false;
         }
         else if (Input.GetKeyDown(KeyCode.RightArrow) && !inputLocked)
         {
             // move right
+            inputLocked = true;
             activeTiles = activeTiles.OrderBy(t => t.currentCoord.x).ThenBy(t => t.currentCoord.y).ToList();
             activeTiles.Reverse();
             foreach (Tile t in activeTiles)
             {
                 StartCoroutine(moveTile(t, Direction.right));
             }
+            yield return new WaitForSeconds(0.11f);
             // spawn a new tile
             SpawnTile();
+            inputLocked = false;
         }
         else
         {
-            return;
+            yield return null;
         }
     }
 
     private IEnumerator moveTile(Tile t, Direction inputDir)
     {
-        inputLocked = true;
         int maxCoord=0, xPrime=0, yPrime=0;
         float directionalMove=0f, coordToCompare=0f;
 
@@ -245,7 +253,6 @@ public class GameScript : MonoBehaviour
                 {
                     t.currentCoord = futureCoord;
                 }
-                inputLocked = false;
             }
             else
             {
