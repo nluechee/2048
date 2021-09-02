@@ -8,6 +8,7 @@ public enum Direction
 {
     up, down, left, right
 }
+
 public class GameScript : MonoBehaviour
 {
     [SerializeField] GameObject tilePrefab;
@@ -90,7 +91,7 @@ public class GameScript : MonoBehaviour
 
     public IEnumerator moveTiles()
     {
-
+        // sort the activeTiles based off the direction of input
         if (Input.GetKeyDown(KeyCode.UpArrow) && !inputLocked)
         {
             // move up
@@ -98,10 +99,14 @@ public class GameScript : MonoBehaviour
             activeTiles = activeTiles.OrderBy(t => t.currentCoord.y).ThenBy(t => t.currentCoord.x).ToList();
             foreach (Tile t in activeTiles)
             {
-                StartCoroutine(moveTile(t, Direction.up));
+                updateTileCoords(t, Direction.up);
             }
-            yield return new WaitForSeconds(0.11f);
-            // spawn a new tile
+            Sequence tileMovementSequence = animateTiles(Direction.up);
+            // wait for all animations to complete
+            yield return tileMovementSequence.WaitForCompletion();
+            // merge any tiles that need merging
+            mergeTiles();
+            // spawn a new tile 
             SpawnTile();
             inputLocked = false;
         }
@@ -113,10 +118,14 @@ public class GameScript : MonoBehaviour
             activeTiles.Reverse();
             foreach (Tile t in activeTiles)
             {
-                StartCoroutine(moveTile(t, Direction.down));
+                updateTileCoords(t, Direction.down);
             }
-            yield return new WaitForSeconds(0.11f);
-            // spawn a new tile
+            Sequence tileMovementSequence = animateTiles(Direction.down);
+            // wait for all animations to complete
+            yield return tileMovementSequence.WaitForCompletion();
+            // merge any tiles that need merging
+            mergeTiles();
+            // spawn a new tile 
             SpawnTile();
             inputLocked = false;
         }
@@ -127,10 +136,14 @@ public class GameScript : MonoBehaviour
             activeTiles = activeTiles.OrderBy(t => t.currentCoord.x).ThenBy(t => t.currentCoord.y).ToList();
             foreach (Tile t in activeTiles)
             {
-                StartCoroutine(moveTile(t, Direction.left));
+                updateTileCoords(t, Direction.left);
             }
-            yield return new WaitForSeconds(0.11f);
-            // spawn a new tile
+            Sequence tileMovementSequence = animateTiles(Direction.left);
+            // wait for all animations to complete
+            yield return tileMovementSequence.WaitForCompletion();
+            // merge any tiles that need merging
+            mergeTiles();
+            // spawn a new tile 
             SpawnTile();
             inputLocked = false;
         }
@@ -142,23 +155,23 @@ public class GameScript : MonoBehaviour
             activeTiles.Reverse();
             foreach (Tile t in activeTiles)
             {
-                StartCoroutine(moveTile(t, Direction.right));
+                updateTileCoords(t, Direction.right);
             }
-            yield return new WaitForSeconds(0.11f);
-            // spawn a new tile
+            Sequence tileMovementSequence = animateTiles(Direction.right);
+            // wait for all animations to complete
+            yield return tileMovementSequence.WaitForCompletion();
+            // merge any tiles that need merging
+            mergeTiles();
+            // spawn a new tile 
             SpawnTile();
             inputLocked = false;
         }
-        else
-        {
-            yield return null;
-        }
     }
 
-    private IEnumerator moveTile(Tile t, Direction inputDir)
+    private void updateTileCoords(Tile t, Direction inputDir)
     {
         int maxCoord=0, xPrime=0, yPrime=0;
-        float directionalMove=0f, coordToCompare=0f;
+        float coordToCompare=0f;
 
         switch (inputDir)
         {
@@ -167,7 +180,6 @@ public class GameScript : MonoBehaviour
                 xPrime = 0;
                 yPrime = -1;
                 coordToCompare = t.currentCoord.y;
-                directionalMove = +120f;
                 break;
 
             case Direction.down:
@@ -175,7 +187,6 @@ public class GameScript : MonoBehaviour
                 xPrime = 0;
                 yPrime = 1;
                 coordToCompare = t.currentCoord.y;
-                directionalMove = -120f;
                 break;
 
             case Direction.left:
@@ -183,7 +194,6 @@ public class GameScript : MonoBehaviour
                 xPrime = -1;
                 yPrime = 0;
                 coordToCompare = t.currentCoord.x;
-                directionalMove = -120f;
                 break;
 
             case Direction.right:
@@ -191,45 +201,39 @@ public class GameScript : MonoBehaviour
                 xPrime = 1;
                 yPrime = 0;
                 coordToCompare = t.currentCoord.x;
-                directionalMove = +120f;
                 break;
         }
 
-        bool merge = false;
-        float moveAmt = 0;
-        Vector2 futureCoord = t.currentCoord;
-        while (coordToCompare != maxCoord)
+        t.previousCoord = t.currentCoord;
+        while (coordToCompare != maxCoord) // if the tile is at a max/min coord break immediately
         {
             bool emptyNeighbour = true;
             foreach (Tile otherTile in activeTiles)
             {
-                if (otherTile.currentCoord == new Vector2(futureCoord.x + xPrime, futureCoord.y + yPrime))
+                if (otherTile.currentCoord == new Vector2(t.currentCoord.x + xPrime, t.currentCoord.y + yPrime))
                 {
                     // there is a neighbouring tile
                     emptyNeighbour = false;
-                    if (otherTile.value == t.value)
+                    if (otherTile.value != t.value)
                     {
-                        // the neighbour can merge
-                        moveAmt += directionalMove;
-                        futureCoord.x += xPrime;
-                        futureCoord.y += yPrime;
-                        coordToCompare += xPrime + yPrime;
-                        otherTile.updateValue();
-                        merge = true;
+                        // the neighbour can't  merge
                         break;
                     }
                     else
                     {
-                        // the neighbour can't merge
-                        break;
+                        // the neighbour can merge
+                        t.currentCoord.x += xPrime;
+                        t.currentCoord.y += yPrime;
+                        coordToCompare += xPrime + yPrime;
+                        otherTile.updateValue();
+                        t.merge = true;
                     }
                 }
             }
             if (emptyNeighbour) // keep moving as long as the neighbouring space is empty
             {
-                moveAmt += directionalMove;
-                futureCoord.x += xPrime;
-                futureCoord.y += yPrime;
+                t.currentCoord.x += xPrime;
+                t.currentCoord.y += yPrime;
                 coordToCompare += xPrime + yPrime;
             }
             else
@@ -238,31 +242,33 @@ public class GameScript : MonoBehaviour
                 break;
             }
         }
-        if (moveAmt != 0)
-        {
-            Tween tileTween = t.move(moveAmt, inputDir);
-            if (tileTween != null)
-            {
-                yield return tileTween.WaitForCompletion();
-                if (merge)
-                {
-                    activeTiles.Remove(t);
-                    t.destroyTile();
-                }
-                else
-                {
-                    t.currentCoord = futureCoord;
-                }
-            }
-            else
-            {
-                yield return null;
-            }
-        }
-        else
-        {
-            yield return null;
-        }
     }
     
+    private Sequence animateTiles(Direction inputDir)
+    {
+        Sequence tileAnimations = DOTween.Sequence();
+        float delta;
+        foreach (Tile t in activeTiles)
+        {
+            if (t.previousCoord != t.currentCoord)
+            {
+                delta = (t.previousCoord.y - t.currentCoord.y) + (t.currentCoord.x - t.previousCoord.x);
+                Tween tileTween = t.move(delta * 120f, inputDir);
+                tileAnimations.Insert(0, tileTween);
+            }
+        }
+        return tileAnimations;
+    }
+
+    private void mergeTiles()
+    {
+        for(int i = activeTiles.Count-1; i>=0; i--)
+        {
+            if (activeTiles[i].merge == true)
+            {
+                Destroy(activeTiles[i].gameObject);
+                activeTiles.Remove(activeTiles[i]);
+            }
+        }
+    }
 }

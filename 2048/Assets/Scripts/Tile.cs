@@ -7,6 +7,8 @@ using DG.Tweening;
 public class Tile : MonoBehaviour
 {
     public Vector2 currentCoord;
+    public Vector2 previousCoord;
+    public bool merge;
     public Text numberText;
     public int value;
     
