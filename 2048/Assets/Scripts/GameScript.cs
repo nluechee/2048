@@ -19,8 +19,7 @@ public class GameScript : MonoBehaviour
     public List<Tile> activeTiles;
     public int score = 0;
     private bool inputLocked;
-    
-    
+
     // Start is called before the first frame update
     void Start()
     {
@@ -66,6 +65,7 @@ public class GameScript : MonoBehaviour
         GameObject newTile = Instantiate(tilePrefab, allCells[randomLocation].transform);
         Tile tile = newTile.GetComponent<Tile>();
         tile.currentCoord = coords;
+        tile.punch();
         newTile.transform.SetParent(tileLayer.transform);
         activeTiles.Add(tile);
         return;
@@ -166,6 +166,14 @@ public class GameScript : MonoBehaviour
             SpawnTile();
             inputLocked = false;
         }
+
+        if (activeTiles.Count == 16)
+        {
+            if (lostGame())
+            {
+                Debug.Log("Lost");
+            }
+        }
     }
 
     private void updateTileCoords(Tile t, Direction inputDir)
@@ -226,6 +234,7 @@ public class GameScript : MonoBehaviour
                         t.currentCoord.y += yPrime;
                         coordToCompare += xPrime + yPrime;
                         otherTile.updateValue();
+                        otherTile.updateColor();
                         t.merge = true;
                     }
                 }
@@ -271,4 +280,44 @@ public class GameScript : MonoBehaviour
             }
         }
     }
+
+    private bool lostGame()
+    {
+        foreach (Tile t in activeTiles)
+        {
+            if (checkNeighbours(t))
+            {
+                return false;
+            }
+
+        }
+        return true;
+    }
+
+    private bool checkNeighbours(Tile t)
+    {
+
+        foreach (Tile otherTile in activeTiles)
+        {
+            if (t.currentCoord.y == otherTile.currentCoord.y && t.currentCoord.x + 1 == otherTile.currentCoord.x && t.value == otherTile.value)
+            {
+                return true;
+            }
+            else if (t.currentCoord.y == otherTile.currentCoord.y && t.currentCoord.x - 1 == otherTile.currentCoord.x && t.value == otherTile.value)
+            {
+                return true;
+            }
+            else if (t.currentCoord.x == otherTile.currentCoord.x && t.currentCoord.y + 1 == otherTile.currentCoord.y && t.value == otherTile.value)
+            {
+                return true;
+            }
+            else if (t.currentCoord.x == otherTile.currentCoord.x && t.currentCoord.y - 1 == otherTile.currentCoord.y && t.value == otherTile.value)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 }
