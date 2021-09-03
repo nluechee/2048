@@ -4,6 +4,17 @@ using UnityEngine;
 
 public class Cell : MonoBehaviour
 {
-    public Vector2 coords;
+    public Tile tile;
+    public Tile tempTile;
 
+    public bool hasTile()
+    {
+       return tile != null ? true : false;
+    }
+
+    public bool hasTempTile()
+    {
+        return tempTile != null ? true : false;
+    }
 }
+

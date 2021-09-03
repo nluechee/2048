@@ -298,8 +298,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tilePrefab: {fileID: 782489171469087855, guid: c77fe5ca04fc5de4eac0f886c6aa52c1, type: 3}
   cellPrefab: {fileID: 176157513443042717, guid: 07dcb7e08cbaef34593ac27e4a5e9412, type: 3}
-  allCells: []
-  grid: {fileID: 1071914649}
+  cellGrid: {fileID: 1071914649}
   tileLayer: {fileID: 1498057213}
   activeTiles: []
   score: 0

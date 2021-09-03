@@ -6,8 +6,7 @@ using DG.Tweening;
 
 public class Tile : MonoBehaviour
 {
-    public Vector2 currentCoord;
-    public Vector2 previousCoord;
+    public Vector2 moveVector;
     public bool merge;
 
     public Image tileColor;
@@ -21,6 +20,7 @@ public class Tile : MonoBehaviour
         numberText.text = value.ToString();
         updateColor();
     }
+
 
     public Tween move(float distance, Direction inputDir)
     {

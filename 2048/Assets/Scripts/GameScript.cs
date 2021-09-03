@@ -13,10 +13,10 @@ public class GameScript : MonoBehaviour
 {
     [SerializeField] GameObject tilePrefab;
     [SerializeField] GameObject cellPrefab;
-    [SerializeField] List<Cell> allCells;
-    public GameObject grid;
+    public GameObject cellGrid;
     public GameObject tileLayer;
-    public List<Tile> activeTiles;
+    public Cell[,] grid;
+    private int activeTiles;
     public int score = 0;
     private bool inputLocked;
 
@@ -24,8 +24,10 @@ public class GameScript : MonoBehaviour
     void Start()
     {
         // initialize the grid
-        StartCoroutine(GenerateGrid());
+        grid = new Cell[4, 4];
+        StartCoroutine(GenerateGrid()); 
         inputLocked = false;
+        activeTiles = 0;
     }
 
     // Update is called once per frame
@@ -36,51 +38,38 @@ public class GameScript : MonoBehaviour
  
     public void SpawnTile()
     {
-        if (activeTiles.Count == 16)
+        if (activeTiles == 16)
         {
             return;
         }
-        Vector2 coords;
-        int randomLocation;
-        bool tileExists = false;
+        int randomX, randomY;
+        bool tileExists;
         do
         {
             // get a random location
-            randomLocation = Random.Range(0, 16);
-            coords = allCells[randomLocation].coords;
-            foreach (Tile t in activeTiles)
-            {
-                if (t.currentCoord == coords)
-                {
-                    tileExists = true;
-                    break;
-                }
-                else
-                {
-                    tileExists = false;
-                }
-            }
+            randomX = Random.Range(0, 4);
+            randomY = Random.Range(0, 4);
+            tileExists = grid[randomY, randomX].hasTile() ? true : false; 
         }
         while (tileExists);
-        GameObject newTile = Instantiate(tilePrefab, allCells[randomLocation].transform);
+        GameObject newTile = Instantiate(tilePrefab, grid[randomY, randomX].transform);
         Tile tile = newTile.GetComponent<Tile>();
-        tile.currentCoord = coords;
         tile.punch();
         newTile.transform.SetParent(tileLayer.transform);
-        activeTiles.Add(tile);
+        grid[randomY, randomX].tile = tile;
+        activeTiles++;
         return;
     }
   
     public IEnumerator GenerateGrid()
     {
-        for (int i = 0; i<4; i++)
+        for (int y = 0; y<4; y++)
         {
-            for (int j=0; j<4; j++)
+            for (int x=0; x<4; x++)
             {
-                GameObject newCell = Instantiate(cellPrefab, grid.transform);
+                GameObject newCell = Instantiate(cellPrefab, cellGrid.transform);
                 Cell cell = newCell.GetComponent<Cell>();
-                cell.coords = new Vector2(j, i);
-                allCells.Add(cell);
+                grid[y, x] = cell;
             }
         }
         yield return new WaitForEndOfFrame();
@@ -96,10 +85,13 @@ public class GameScript : MonoBehaviour
         {
             // move up
             inputLocked = true;
-            activeTiles = activeTiles.OrderBy(t => t.currentCoord.y).ThenBy(t => t.currentCoord.x).ToList();
-            foreach (Tile t in activeTiles)
+            for (int y = 0; y < 4; y++)
             {
-                updateTileCoords(t, Direction.up);
+                for (int x = 0; x < 4; x++)
+                {
+                    Cell c = grid[y, x];
+                    updateTileCoords(c, Direction.up, x, y);
+                }
             }
             Sequence tileMovementSequence = animateTiles(Direction.up);
             // wait for all animations to complete
@@ -114,11 +106,13 @@ public class GameScript : MonoBehaviour
         {
             // move down
             inputLocked = true;
-            activeTiles = activeTiles.OrderBy(t => t.currentCoord.y).ThenBy(t => t.currentCoord.x).ToList();
-            activeTiles.Reverse();
-            foreach (Tile t in activeTiles)
+            for (int y = 3; y >= 0; y--)
             {
-                updateTileCoords(t, Direction.down);
+                for (int x = 0; x < 4; x++)
+                {
+                    Cell c = grid[y, x];
+                    updateTileCoords(c, Direction.down, x, y);
+                }
             }
             Sequence tileMovementSequence = animateTiles(Direction.down);
             // wait for all animations to complete
@@ -133,10 +127,13 @@ public class GameScript : MonoBehaviour
         {
             // move left
             inputLocked = true;
-            activeTiles = activeTiles.OrderBy(t => t.currentCoord.x).ThenBy(t => t.currentCoord.y).ToList();
-            foreach (Tile t in activeTiles)
+            for (int x = 0; x < 4; x++)
             {
-                updateTileCoords(t, Direction.left);
+                for (int y = 0; y < 4; y++)
+                {
+                    Cell c = grid[y, x];
+                    updateTileCoords(c, Direction.left, x, y);
+                }
             }
             Sequence tileMovementSequence = animateTiles(Direction.left);
             // wait for all animations to complete
@@ -151,11 +148,13 @@ public class GameScript : MonoBehaviour
         {
             // move right
             inputLocked = true;
-            activeTiles = activeTiles.OrderBy(t => t.currentCoord.x).ThenBy(t => t.currentCoord.y).ToList();
-            activeTiles.Reverse();
-            foreach (Tile t in activeTiles)
+            for (int x = 3; x >=0; x--)
             {
-                updateTileCoords(t, Direction.right);
+                for (int y = 0; y < 4; y++)
+                {
+                    Cell c = grid[y, x];
+                    updateTileCoords(c, Direction.right, x, y);
+                }
             }
             Sequence tileMovementSequence = animateTiles(Direction.right);
             // wait for all animations to complete
@@ -167,88 +166,101 @@ public class GameScript : MonoBehaviour
             inputLocked = false;
         }
 
-        if (activeTiles.Count == 16)
-        {
-            if (lostGame())
-            {
-                Debug.Log("Lost");
-            }
-        }
+        //if (activeTiles.Count == 16)
+        //{
+        //    if (lostGame())
+        //    {
+        //        Debug.Log("Lost");
+        //    }
+        //}
     }
 
-    private void updateTileCoords(Tile t, Direction inputDir)
+    private void updateTileCoords(Cell c, Direction inputDir, int x, int y)
     {
-        int maxCoord=0, xPrime=0, yPrime=0;
-        float coordToCompare=0f;
-
+        if (!c.hasTile()) // do nothing if there is no tile on the cell
+        {
+            return;
+        }
+        int maxCoord=0, xPrime=0, yPrime=0,neighbourX = 0, neighbourY = 0;
+        float coordToCompare = 0f;
+        Tile t = c.tile;
         switch (inputDir)
         {
             case Direction.up:
                 maxCoord = 0;
                 xPrime = 0;
                 yPrime = -1;
-                coordToCompare = t.currentCoord.y;
+                coordToCompare = y;
+                neighbourX = x;
+                neighbourY = y;
                 break;
 
             case Direction.down:
                 maxCoord = 3;
                 xPrime = 0;
                 yPrime = 1;
-                coordToCompare = t.currentCoord.y;
+                coordToCompare = y;
+                neighbourX = x;
+                neighbourY = y;
                 break;
 
             case Direction.left:
                 maxCoord = 0;
                 xPrime = -1;
                 yPrime = 0;
-                coordToCompare = t.currentCoord.x;
+                coordToCompare = x;
+                neighbourX = x;
+                neighbourY = y;
                 break;
 
             case Direction.right:
                 maxCoord = 3;
                 xPrime = 1;
                 yPrime = 0;
-                coordToCompare = t.currentCoord.x;
+                coordToCompare = x;
+                neighbourX = x;
+                neighbourY = y;
                 break;
         }
 
-        t.previousCoord = t.currentCoord;
-        while (coordToCompare != maxCoord) // if the tile is at a max/min coord break immediately
+        t.moveVector = new Vector2(0, 0);
+        while (coordToCompare != maxCoord)  // if the tile is at a max/min coord break immediately
         {
-            bool emptyNeighbour = true;
-            foreach (Tile otherTile in activeTiles)
+            Cell neighbourCell = grid[neighbourY + yPrime, neighbourX + xPrime];
+            if (neighbourCell.hasTile())  // check for neighbouring tile in direction of move
             {
-                if (otherTile.currentCoord == new Vector2(t.currentCoord.x + xPrime, t.currentCoord.y + yPrime))
+                if (neighbourCell.tile.value == t.value)
                 {
-                    // there is a neighbouring tile
-                    emptyNeighbour = false;
-                    if (otherTile.value != t.value)
-                    {
-                        // the neighbour can't  merge
-                        break;
-                    }
-                    else
-                    {
-                        // the neighbour can merge
-                        t.currentCoord.x += xPrime;
-                        t.currentCoord.y += yPrime;
-                        coordToCompare += xPrime + yPrime;
-                        otherTile.updateValue();
-                        otherTile.updateColor();
-                        t.merge = true;
-                    }
+                    // the values are the same and the neighbour can merge
+                    // update the move vector for the tile and update its position in the grid
+                    t.moveVector.x += xPrime;
+                    t.moveVector.y -= yPrime;
+                    t.merge = true;  // tile will be updated in mergeTiles()
+                    neighbourCell.tempTile = neighbourCell.tile; // move the neighbour's tile to a temp spot
+                    neighbourCell.tile = t;  // overwrite the neighbour tile with this one
+                    c.tile = null;  // remove the tile from this cell
+                    // change the coord to compare to the next cell 
+                    coordToCompare += xPrime + yPrime;
+                    neighbourX += xPrime;
+                    neighbourY += yPrime;
+                }
+                else
+                {
+                    // the values are different and the neighbour can't  merge 
+                    break;
                 }
             }
-            if (emptyNeighbour) // keep moving as long as the neighbouring space is empty
+            else  // keep moving as long as the neighbouring space is empty
             {
-                t.currentCoord.x += xPrime;
-                t.currentCoord.y += yPrime;
+                // update the move vector for the tile and update its position in the grid
+                t.moveVector.x += xPrime;
+                t.moveVector.y -= yPrime;
+                neighbourCell.tile = t; // move this tile to the neighbour
+                c.tile = null;  // remove the tile from this cell
+                // change the coord to compare to the next cell 
                 coordToCompare += xPrime + yPrime;
-            }
-            else
-            {
-                // stop moving since the neighbour can't merge
-                break;
+                neighbourX += xPrime;
+                neighbourY += yPrime;
             }
         }
     }
@@ -257,13 +269,19 @@ public class GameScript : MonoBehaviour
     {
         Sequence tileAnimations = DOTween.Sequence();
         float delta;
-        foreach (Tile t in activeTiles)
+        Cell c;
+        for (int y = 0; y < 4; y++)
         {
-            if (t.previousCoord != t.currentCoord)
+            for (int x = 0; x < 4; x++)
             {
-                delta = (t.previousCoord.y - t.currentCoord.y) + (t.currentCoord.x - t.previousCoord.x);
-                Tween tileTween = t.move(delta * 120f, inputDir);
-                tileAnimations.Insert(0, tileTween);
+                c = grid[y, x];
+                if (c.hasTile())
+                {
+                    delta = c.tile.moveVector.x + c.tile.moveVector.y;
+                    Tween tileTween = c.tile.move(delta * 120f, inputDir);
+                    tileAnimations.Insert(0, tileTween);
+                    c.tile.moveVector = new Vector2(0, 0);
+                }
             }
         }
         return tileAnimations;
@@ -271,53 +289,71 @@ public class GameScript : MonoBehaviour
 
     private void mergeTiles()
     {
-        for(int i = activeTiles.Count-1; i>=0; i--)
+        
+        Cell c;
+        for (int y = 0; y < 4; y++)
         {
-            if (activeTiles[i].merge == true)
+            for (int x = 0; x < 4; x++)
             {
-                Destroy(activeTiles[i].gameObject);
-                activeTiles.Remove(activeTiles[i]);
+                c = grid[y, x];
+                if (c.hasTile())
+                {
+                    if (c.tile.merge == true)
+                    {
+                        // update the neighbour tile to show the merge
+                        c.tile.updateValue();
+                        c.tile.updateColor();
+                        c.tile.merge = false;
+                    }
+                }
+
+                if (c.hasTempTile())
+                {
+                    Destroy(c.tempTile.gameObject);
+                    c.tempTile = null;
+                    activeTiles--;
+                }
             }
         }
     }
 
-    private bool lostGame()
-    {
-        foreach (Tile t in activeTiles)
-        {
-            if (checkNeighbours(t))
-            {
-                return false;
-            }
+    //private bool lostGame()
+    //{
+    //    foreach (Tile t in activeTiles)
+    //    {
+    //        if (checkNeighbours(t))
+    //        {
+    //            return false;
+    //        }
 
-        }
-        return true;
-    }
+    //    }
+    //    return true;
+    //}
 
-    private bool checkNeighbours(Tile t)
-    {
+    //private bool checkNeighbours(Tile t)
+    //{
 
-        foreach (Tile otherTile in activeTiles)
-        {
-            if (t.currentCoord.y == otherTile.currentCoord.y && t.currentCoord.x + 1 == otherTile.currentCoord.x && t.value == otherTile.value)
-            {
-                return true;
-            }
-            else if (t.currentCoord.y == otherTile.currentCoord.y && t.currentCoord.x - 1 == otherTile.currentCoord.x && t.value == otherTile.value)
-            {
-                return true;
-            }
-            else if (t.currentCoord.x == otherTile.currentCoord.x && t.currentCoord.y + 1 == otherTile.currentCoord.y && t.value == otherTile.value)
-            {
-                return true;
-            }
-            else if (t.currentCoord.x == otherTile.currentCoord.x && t.currentCoord.y - 1 == otherTile.currentCoord.y && t.value == otherTile.value)
-            {
-                return true;
-            }
-        }
+    //    foreach (Tile otherTile in activeTiles)
+    //    {
+    //        if (t.currentCoord.y == otherTile.currentCoord.y && t.currentCoord.x + 1 == otherTile.currentCoord.x && t.value == otherTile.value)
+    //        {
+    //            return true;
+    //        }
+    //        else if (t.currentCoord.y == otherTile.currentCoord.y && t.currentCoord.x - 1 == otherTile.currentCoord.x && t.value == otherTile.value)
+    //        {
+    //            return true;
+    //        }
+    //        else if (t.currentCoord.x == otherTile.currentCoord.x && t.currentCoord.y + 1 == otherTile.currentCoord.y && t.value == otherTile.value)
+    //        {
+    //            return true;
+    //        }
+    //        else if (t.currentCoord.x == otherTile.currentCoord.x && t.currentCoord.y - 1 == otherTile.currentCoord.y && t.value == otherTile.value)
+    //        {
+    //            return true;
+    //        }
+    //    }
 
-        return false;
-    }
+    //    return false;
+    //}
 
 }
