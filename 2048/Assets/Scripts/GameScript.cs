@@ -334,7 +334,7 @@ public class GameScript : MonoBehaviour
         {
             for (int y = 0; y < 4; y++)
             {
-                if (x == 0)
+                if (y == 0)
                 {
                     lastValue = grid[x, y].tile.value;
                 }
