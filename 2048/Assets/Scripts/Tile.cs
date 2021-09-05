@@ -9,6 +9,7 @@ public class Tile : MonoBehaviour
     public Vector2 currentCoord;
     public Vector2 previousCoord;
     public bool merge;
+    public bool destroy;
 
     public Image tileColor;
     public Text numberText;
@@ -20,25 +21,6 @@ public class Tile : MonoBehaviour
         initValue();
         numberText.text = value.ToString();
         updateColor();
-    }
-
-    public Tween move(float distance, Direction inputDir)
-    {
-        Tween tileTween;
-        switch (inputDir)
-        {
-            case Direction.up:
-            case Direction.down:
-                tileTween = transform.DOMoveY(transform.position.y + distance,0.1f, true);
-                return tileTween;
-
-            case Direction.left:
-            case Direction.right:
-                tileTween = transform.DOMoveX(transform.position.x + distance, 0.1f, true);
-                return tileTween;
-            default:
-                return null;
-        }
     }
 
     public void punch()
